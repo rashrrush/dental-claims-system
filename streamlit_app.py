@@ -75,6 +75,19 @@ st.markdown("""
         margin: 1rem 0;
     }
     
+    /* Button styling */
+    .stButton > button[kind="primary"] {
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+        color: white !important;
+    }
+    
+    .stButton > button[kind="secondary"] {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+    }
+    
     .metric-card {
         background: #f8f9fa;
         border: 1px solid #dee2e6;
@@ -115,28 +128,15 @@ st.markdown("""
 if st.session_state.step >= 1:
     st.markdown("### Cases")
     
-    col1, col2 = st.columns([3, 1])
+    col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.markdown(f"""
-        <div class="claim-card">
-            <h4 id="provider-name" data-testid="provider-name">{st.session_state.claim_data['provider_name']}</h4>
-            <p><strong>Member:</strong> <span id="member-name" data-testid="member-name">{st.session_state.claim_data['member_name']}</span></p>
-            <p><strong>Procedure:</strong> <span id="procedure-desc" data-testid="procedure-desc">{st.session_state.claim_data['procedure']}</span></p>
-            <p><strong>Amount:</strong> <span id="claim-amount" data-testid="claim-amount">${st.session_state.claim_data['amount']:,}</span></p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div style="text-align: center; margin-top: 2rem;">
-            <h6>Status: <span class="status-pending" id="claim-status" data-testid="claim-status">{st.session_state.claim_data['status']}</span></h6>
-        </div>
-        """, unsafe_allow_html=True)
-        
         if st.button("View My Cases", key="view_cases", use_container_width=True):
             st.session_state.step = 2
             st.rerun()
+    
+    with col2:
+        st.markdown("")  # Empty space for balance
 
 # Step 2: Claim Details
 if st.session_state.step >= 2:
@@ -159,10 +159,10 @@ if st.session_state.step >= 2:
         | **Status** | <span data-testid="claim-status-detail">{st.session_state.claim_data['status'].lower()}</span> |
         """
         st.markdown(claim_details, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("#### Actions")
-        if st.button("Verify Data", key="verify_data", use_container_width=True):
+        
+        # Verify Data button below claim information
+        st.markdown("---")
+        if st.button("🔍 Verify Data", key="verify_data", use_container_width=True, type="primary"):
             st.session_state.step = 3
             # Simulate verification process
             st.session_state.verification_data = {
@@ -261,33 +261,64 @@ if st.session_state.step >= 3 and st.session_state.verification_data:
         </div>
         """, unsafe_allow_html=True)
     
-    # System recommendation and decision buttons
-    col1, col2 = st.columns([1, 1])
+    # Decision Actions with custom HTML buttons
+    st.markdown("#### Decision Actions")
     
+    # Create custom HTML buttons that look identical
+    st.markdown("""
+    <div style="display: flex; gap: 20px; margin: 20px 0;">
+        <button id="approve-btn" data-testid="approve-button" 
+                onclick="window.parent.postMessage({type: 'approve'}, '*')"
+                style="flex: 1; height: 60px; font-size: 16px; font-weight: bold; 
+                       background-color: #28a745; color: white; border: none; 
+                       border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+            ✅ Approve Claim
+        </button>
+        <button id="deny-btn" data-testid="deny-button"
+                onclick="window.parent.postMessage({type: 'deny'}, '*')"
+                style="flex: 1; height: 60px; font-size: 16px; font-weight: bold; 
+                       background-color: #dc3545; color: white; border: none; 
+                       border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+            ❌ Deny Claim
+        </button>
+    </div>
+    
+    <script>
+    window.addEventListener('message', function(event) {
+        if (event.data.type === 'approve') {
+            // Trigger Streamlit rerun for approve
+            window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'approve'}, '*');
+        } else if (event.data.type === 'deny') {
+            // Trigger Streamlit rerun for deny
+            window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'deny'}, '*');
+        }
+    });
+    </script>
+    """, unsafe_allow_html=True)
+    
+    # Fallback Streamlit buttons (hidden but functional)
+    col1, col2 = st.columns(2)
     with col1:
-        st.markdown("#### System Recommendation:")
-        st.markdown(f"""
-        <div class="recommendation-approve" id="final-recommendation" data-testid="final-recommendation">
-            {st.session_state.verification_data['recommendation']}
-        </div>
-        """, unsafe_allow_html=True)
-    
+        if st.button("Approve", key="approve_fallback", help="Approve claim"):
+            st.session_state.step = 4
+            st.session_state.claim_data['status'] = 'APPROVED'
+            st.rerun()
     with col2:
-        st.markdown("#### Decision Actions:")
-        
-        col_approve, col_deny = st.columns(2)
-        
-        with col_approve:
-            if st.button("Approve", key="approve_btn", use_container_width=True, type="primary"):
-                st.session_state.step = 4
-                st.session_state.claim_data['status'] = 'APPROVED'
-                st.rerun()
-        
-        with col_deny:
-            if st.button("Deny", key="deny_btn", use_container_width=True):
-                st.session_state.step = 4
-                st.session_state.claim_data['status'] = 'DENIED'
-                st.rerun()
+        if st.button("Deny", key="deny_fallback", help="Deny claim"):
+            st.session_state.step = 4
+            st.session_state.claim_data['status'] = 'DENIED'
+            st.rerun()
+    
+    # Hide the fallback buttons with CSS
+    st.markdown("""
+    <style>
+    /* Hide fallback buttons */
+    .stButton:has(button[title="Approve claim"]),
+    .stButton:has(button[title="Deny claim"]) {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     # Hidden JSON data for system integration
     verification_json = json.dumps(st.session_state.verification_data, indent=2)
